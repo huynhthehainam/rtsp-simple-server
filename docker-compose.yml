@@ -1,0 +1,15 @@
+
+version: '3.4'
+
+services:
+  
+  server:
+    build: .
+    image: mismart-rtsp-server
+    ports:
+      - 8554:8554
+      
+    
+
+    
+    

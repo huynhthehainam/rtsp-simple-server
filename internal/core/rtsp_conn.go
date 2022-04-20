@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/aler9/gortsplib"
@@ -14,6 +15,7 @@ import (
 	"github.com/aler9/rtsp-simple-server/internal/conf"
 	"github.com/aler9/rtsp-simple-server/internal/externalcmd"
 	"github.com/aler9/rtsp-simple-server/internal/logger"
+	"github.com/golang-jwt/jwt"
 )
 
 const (
@@ -111,6 +113,36 @@ func (c *rtspConn) authenticate(
 	req *base.Request,
 	query string,
 ) error {
+	paramsString := strings.Split(query, "&")
+	params := make(map[string]string)
+	for _, paramString := range paramsString {
+		words := strings.Split(paramString, "=")
+
+		if len(words) == 2 {
+			key := words[0]
+			value := words[1]
+			params[key] = value
+		}
+	}
+	secret := []byte("mismart_nmasa23asbnzxvu")
+	if val, ok := params["auth"]; ok {
+		token, err := jwt.Parse(val, func(token *jwt.Token) (interface{}, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+			}
+
+			// hmacSampleSecret is a []byte containing your secret, e.g. []byte("my_secret_key")
+			return secret, nil
+		})
+		if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+			fmt.Println(claims["sub"])
+		} else {
+			return pathErrAuthCritical{message: err.Error(), response: &base.Response{
+				StatusCode: base.StatusUnauthorized,
+			}}
+		}
+	}
+	return nil
 	if c.externalAuthenticationURL != "" {
 		username := ""
 		password := ""
